@@ -15,6 +15,13 @@ interface CatHierarchyItem {
   parent?: string;  
 }  
   
+interface MakerSummary {  
+  maker: string;  
+  ms: number;  
+  ms_ref: number;  
+  pos: number;  
+}  
+  
 export default function CatPage() {  
   const params = useParams();  
   const router = useRouter();  
@@ -123,6 +130,47 @@ export default function CatPage() {
       .sort((a, b) => b.pos - a.pos);  
   }, [allData, selectedRegion2, selectedSubCat]);  
   
+  // 동적 요약 (지역2 선택 시 계산)  
+  const dynamicSummary = useMemo(() => {  
+    if (!selectedRegion2) return null;  
+  
+    const totalPos = computedData.reduce((sum, s) => sum + (s.pos || 0), 0);  
+    const cjPos = computedData.filter((s) => s.mk === 'CJ').reduce((sum, s) => sum + (s.pos || 0), 0);  
+    const compPos = totalPos - cjPos;  
+    const cjMs = totalPos > 0 ? cjPos / totalPos : 0;  
+  
+    return {  
+      cj: cjPos,  
+      competitor: compPos,  
+      ms: cjMs,  
+    };  
+  }, [selectedRegion2, computedData]);  
+  
+  // 경쟁사별 MS 요약  
+  const makerSummary = useMemo((): MakerSummary[] => {  
+    const totalPos = computedData.reduce((sum, s) => sum + (s.pos || 0), 0);  
+    if (totalPos === 0) return [];  
+  
+    const makerMap = new Map<string, { pos: number; mr: number }>();  
+    computedData.forEach((sku) => {  
+      const key = sku.mk;  
+      if (!makerMap.has(key)) {  
+        makerMap.set(key, { pos: 0, mr: sku.mr || 0 });  
+      }  
+      const entry = makerMap.get(key)!;  
+      entry.pos += sku.pos || 0;  
+    });  
+  
+    return Array.from(makerMap.entries())  
+      .map(([maker, val]) => ({  
+        maker,  
+        ms: val.pos / totalPos,  
+        ms_ref: val.mr,  
+        pos: val.pos  
+      }))  
+      .sort((a, b) => b.pos - a.pos);  
+  }, [computedData]);  
+  
   const filtered = useMemo(() => {  
     let result = computedData;  
     if (searchProduct) {  
@@ -174,10 +222,13 @@ export default function CatPage() {
     );  
   }  
   
-  const msLocal = catSummary?.ms != null ? (catSummary.ms * 100).toFixed(1) + '%' : '-';  
+  const displayMs = dynamicSummary ? dynamicSummary.ms : catSummary?.ms;  
+  const displayCj = dynamicSummary ? dynamicSummary.cj : catSummary?.cj;  
+  const displayComp = dynamicSummary ? dynamicSummary.competitor : catSummary?.competitor;  
+  const msLocal = displayMs != null ? (displayMs * 100).toFixed(1) + '%' : '-';  
   const msRef = catSummary?.ms_ref != null ? (catSummary.ms_ref * 100).toFixed(1) + '%' : '-';  
-  const msDiff = catSummary?.ms_diff ?? 0;  
-  const isPositive = msDiff >= 0;  
+  const msDiffVal = displayMs != null && catSummary?.ms_ref != null ? displayMs - catSummary.ms_ref : catSummary?.ms_diff ?? 0;  
+  const isPositive = msDiffVal >= 0;  
   
   return (  
     <div style={{  
@@ -205,58 +256,117 @@ export default function CatPage() {
           {selectedRegion2 ? selectedRegion2 : `${region} 전체 합산`} · {selectedSubCat ? selectedSubCat : '전체'} · POS 내림차순  
         </p>  
   
-        {catSummary && (  
+        {/* 상단 요약 카드 */}  
+        <div style={{  
+          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px',  
+          marginBottom: '12px'  
+        }}>  
           <div style={{  
-            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px',  
-            marginBottom: '12px'  
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',  
+            borderRadius: '10px', padding: '10px 8px', textAlign: 'center'  
           }}>  
-            <div style={{  
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',  
-              borderRadius: '10px', padding: '10px 8px', textAlign: 'center'  
-            }}>  
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>  
-                {region} MS  
-              </div>  
-              <div style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>  
-                {msLocal}  
-              </div>  
-              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>  
-                CJ {catSummary.cj?.toFixed(0)} / 경쟁 {catSummary.competitor?.toFixed(0)}  
-              </div>  
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>  
+              {selectedRegion2 ? selectedRegion2 : region} MS  
             </div>  
-            <div style={{  
-              background: 'linear-gradient(135deg, #38a169 0%, #2f855a 100%)',  
-              borderRadius: '10px', padding: '10px 8px', textAlign: 'center'  
-            }}>  
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>  
-                영본 MS  
-              </div>  
-              <div style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>  
-                {msRef}  
-              </div>  
-              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>  
-                CJ {catSummary.cj_ref?.toFixed(0)} / 경쟁 {catSummary.competitor_ref?.toFixed(0)}  
-              </div>  
+            <div style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>  
+              {msLocal}  
             </div>  
-            <div style={{  
-              background: isPositive  
-                ? 'linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%)'  
-                : 'linear-gradient(135deg, #e53e3e 0%, #c53030 100%)',  
-              borderRadius: '10px', padding: '10px 8px', textAlign: 'center'  
-            }}>  
-              <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>  
-                영본 比  
-              </div>  
-              <div style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>  
-                {isPositive ? '+' : ''}{(msDiff * 100).toFixed(1)}%  
-              </div>  
-              <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>  
-                {isPositive ? '▲ 영본 상회' : '▼ 영본 하회'}  
-              </div>  
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>  
+              CJ {displayCj?.toFixed(0)} / 경쟁 {displayComp?.toFixed(0)}  
+            </div>  
+          </div>  
+          <div style={{  
+            background: 'linear-gradient(135deg, #38a169 0%, #2f855a 100%)',  
+            borderRadius: '10px', padding: '10px 8px', textAlign: 'center'  
+          }}>  
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>  
+              영본 MS  
+            </div>  
+            <div style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>  
+              {msRef}  
+            </div>  
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>  
+              CJ {catSummary?.cj_ref?.toFixed(0)} / 경쟁 {catSummary?.competitor_ref?.toFixed(0)}  
+            </div>  
+          </div>  
+          <div style={{  
+            background: isPositive  
+              ? 'linear-gradient(135deg, #3182ce 0%, #2b6cb0 100%)'  
+              : 'linear-gradient(135deg, #e53e3e 0%, #c53030 100%)',  
+            borderRadius: '10px', padding: '10px 8px', textAlign: 'center'  
+          }}>  
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>  
+              영본 比  
+            </div>  
+            <div style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>  
+              {isPositive ? '+' : ''}{(msDiffVal * 100).toFixed(1)}%  
+            </div>  
+            <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>  
+              {isPositive ? '▲ 영본 상회' : '▼ 영본 하회'}  
+            </div>  
+          </div>  
+        </div>  
+  
+        {/* 경쟁사별 MS 요약 */}  
+        {makerSummary.length > 0 && (  
+          <div style={{  
+            background: 'white', borderRadius: '12px', padding: '12px',  
+            marginBottom: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)'  
+          }}>  
+            <div style={{ fontSize: '11px', fontWeight: '700', color: '#444', marginBottom: '8px' }}>  
+              🏆 제조사별 MS 현황  
+            </div>  
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>  
+              {makerSummary.map((m, idx) => {  
+                const isCJ = m.maker === 'CJ';  
+                const diff = m.ms - m.ms_ref;  
+                const isPos = diff >= 0;  
+                const barWidth = Math.min(m.ms * 100 * 3, 100);  
+                return (  
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>  
+                    <div style={{ width: '60px', textAlign: 'right' }}>  
+                      <span style={{  
+                        fontSize: '11px', fontWeight: '800',  
+                        color: isCJ ? '#667eea' : '#1a1a2e'  
+                      }}>  
+                        {m.maker}  
+                      </span>  
+                    </div>  
+                    <div style={{ flex: 1, background: '#f0f0f0', borderRadius: '4px', height: '16px', overflow: 'hidden' }}>  
+                      <div style={{  
+                        width: `${barWidth}%`,  
+                        height: '100%',  
+                        background: isCJ  
+                          ? 'linear-gradient(90deg, #667eea, #764ba2)'  
+                          : 'linear-gradient(90deg, #e53e3e, #c53030)',  
+                        borderRadius: '4px',  
+                        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',  
+                        paddingRight: '4px'  
+                      }}>  
+                        <span style={{ fontSize: '9px', color: 'white', fontWeight: '700' }}>  
+                          {(m.ms * 100).toFixed(1)}%  
+                        </span>  
+                      </div>  
+                    </div>  
+                    <div style={{ width: '64px', textAlign: 'right' }}>  
+                      <span style={{  
+                        fontSize: '10px', fontWeight: '700',  
+                        color: isPos ? '#3182ce' : '#e53e3e'  
+                      }}>  
+                        {isPos ? '▲' : '▼'}{Math.abs(diff * 100).toFixed(1)}%  
+                      </span>  
+                      <div style={{ fontSize: '9px', color: '#aaa' }}>  
+                        영본 {(m.ms_ref * 100).toFixed(1)}%  
+                      </div>  
+                    </div>  
+                  </div>  
+                );  
+              })}  
             </div>  
           </div>  
         )}  
   
+        {/* 필터 영역 */}  
         <div style={{  
           background: 'white', borderRadius: '12px', padding: '12px',  
           marginBottom: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',  
@@ -410,6 +520,7 @@ export default function CatPage() {
           </div>  
         </div>  
   
+        {/* SKU 테이블 */}  
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }} onClick={() => setShowProductSugg(false)}>  
           <table style={{  
             width: '100%', borderCollapse: 'collapse',  
