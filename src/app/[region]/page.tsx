@@ -29,7 +29,15 @@ export default function RegionPage() {
   const [filteredCat2, setFilteredCat2] = useState<RegionCat[]>([]);  
   const [search, setSearch] = useState('');  
   const [showSuggestions, setShowSuggestions] = useState(false);  
+  const [isMobile, setIsMobile] = useState(false);  
   const [loading, setLoading] = useState(true);  
+  
+  useEffect(() => {  
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);  
+    checkMobile();  
+    window.addEventListener('resize', checkMobile);  
+    return () => window.removeEventListener('resize', checkMobile);  
+  }, []);  
   
   useEffect(() => {  
     const loadData = async () => {  
@@ -102,6 +110,56 @@ export default function RegionPage() {
     );  
   }  
   
+  // 모바일: 카드형 렌더링  
+    const renderCard = (item: RegionCat, idx: number, clickable: boolean) => {  
+    const msDiff = item.ms_diff ?? 0;  
+    const isNegative = msDiff < 0;  
+    return (  
+      <div  
+        key={idx}  
+        onClick={() => clickable && router.push(`/${encodeURIComponent(region)}/${encodeURIComponent(item.cat)}`)}  
+        style={{  
+          background: clickable ? 'white' : '#f4f6fb',  
+          borderRadius: '10px',  
+          padding: '12px 14px',  
+          marginBottom: '8px',  
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',  
+          cursor: clickable ? 'pointer' : 'default',  
+          border: clickable ? '1px solid #eee' : '1px solid #e0e0e0'  
+        }}  
+      >  
+        <div style={{ fontWeight: '800', fontSize: '13px', color: '#1a1a2e', marginBottom: '8px' }}>  
+          {item.cat}  
+        </div>  
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>  
+          <div style={{ background: '#f8f9ff', borderRadius: '8px', padding: '6px 4px', textAlign: 'center' }}>  
+            <div style={{ fontSize: '9px', color: '#888', marginBottom: '2px' }}>CJ MS</div>  
+            <div style={{ fontSize: '14px', fontWeight: '800', color: '#667eea' }}>  
+              {item.ms != null ? (item.ms * 100).toFixed(1) + '%' : '-'}  
+            </div>  
+          </div>  
+          <div style={{ background: '#f0fff4', borderRadius: '8px', padding: '6px 4px', textAlign: 'center' }}>  
+            <div style={{ fontSize: '9px', color: '#888', marginBottom: '2px' }}>영본 MS</div>  
+            <div style={{ fontSize: '14px', fontWeight: '800', color: '#38a169' }}>  
+              {item.ms_ref != null ? (item.ms_ref * 100).toFixed(1) + '%' : '-'}  
+            </div>  
+          </div>  
+          <div style={{  
+            background: isNegative ? '#fff5f5' : '#ebf8ff',  
+            borderRadius: '8px', padding: '6px 4px', textAlign: 'center'  
+          }}>  
+            <div style={{ fontSize: '9px', color: '#888', marginBottom: '2px' }}>영본 比</div>  
+            <div style={{ fontSize: '14px', fontWeight: '800', color: isNegative ? '#e53e3e' : '#3182ce' }}>  
+              {msDiff > 0 ? '+' : ''}{(msDiff * 100).toFixed(1)}%  
+            </div>  
+          </div>  
+        </div>  
+      </div>  
+    );  
+  };  
+
+  
+  // PC: 테이블 렌더링  
   const renderRow = (item: RegionCat, idx: number, clickable: boolean) => {  
     const msDiff = item.ms_diff ?? 0;  
     const isNegative = msDiff < 0;  
@@ -235,40 +293,56 @@ export default function RegionPage() {
           )}  
         </div>  
   
-        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }} onClick={() => setShowSuggestions(false)}>  
-          <table style={{  
-            width: '100%', borderCollapse: 'collapse',  
-            background: 'white', borderRadius: '14px',  
-            overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)',  
-            minWidth: '480px'  
-          }}>  
-            <thead>  
-              <tr style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>  
-                {['분류', 'CJ', '경쟁사', 'MS', '영본CJ', '영본경쟁사', '영본MS', '영본比'].map((h) => (  
-                  <th key={h} style={{  
-                    padding: '10px 6px', color: 'white',  
-                    fontSize: '11px', fontWeight: '700',  
-                    textAlign: 'center', whiteSpace: 'nowrap'  
+        {isMobile ? (  
+          <div onClick={() => setShowSuggestions(false)}>  
+            <div style={{ marginBottom: '8px' }}>  
+              {summaryCats.map((item, idx) => renderCard(item, idx, false))}  
+            </div>  
+            <div style={{  
+              padding: '6px 10px', background: '#1a1a2e',  
+              color: 'white', fontSize: '11px', fontWeight: '700',  
+              borderRadius: '8px', marginBottom: '8px'  
+            }}>  
+              📂 분류2 상세 ({filteredCat2.length}개)  
+            </div>  
+            {filteredCat2.map((item, idx) => renderCard(item, idx, true))}  
+          </div>  
+        ) : (  
+          <div style={{ overflowX: 'auto' }} onClick={() => setShowSuggestions(false)}>  
+            <table style={{  
+              width: '100%', borderCollapse: 'collapse',  
+              background: 'white', borderRadius: '14px',  
+              overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.08)',  
+              minWidth: '480px'  
+            }}>  
+              <thead>  
+                <tr style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>  
+                  {['분류', 'CJ', '경쟁사', 'MS', '영본CJ', '영본경쟁사', '영본MS', '영본比'].map((h) => (  
+                    <th key={h} style={{  
+                      padding: '10px 6px', color: 'white',  
+                      fontSize: '11px', fontWeight: '700',  
+                      textAlign: 'center', whiteSpace: 'nowrap'  
+                    }}>  
+                      {h}  
+                    </th>  
+                  ))}  
+                </tr>  
+              </thead>  
+              <tbody>  
+                {summaryCats.map((item, idx) => renderRow(item, idx, false))}  
+                <tr>  
+                  <td colSpan={8} style={{  
+                    padding: '6px 10px', background: '#1a1a2e',  
+                    color: 'white', fontSize: '11px', fontWeight: '700'  
                   }}>  
-                    {h}  
-                  </th>  
-                ))}  
-              </tr>  
-            </thead>  
-            <tbody>  
-              {summaryCats.map((item, idx) => renderRow(item, idx, false))}  
-              <tr>  
-                <td colSpan={8} style={{  
-                  padding: '6px 10px', background: '#1a1a2e',  
-                  color: 'white', fontSize: '11px', fontWeight: '700'  
-                }}>  
-                  📂 분류2 상세 ({filteredCat2.length}개)  
-                </td>  
-              </tr>  
-              {filteredCat2.map((item, idx) => renderRow(item, idx, true))}  
-            </tbody>  
-          </table>  
-        </div>  
+                    📂 분류2 상세 ({filteredCat2.length}개)  
+                  </td>  
+                </tr>  
+                {filteredCat2.map((item, idx) => renderRow(item, idx, true))}  
+              </tbody>  
+            </table>  
+          </div>  
+        )}  
   
         <p style={{ fontSize: '12px', color: '#888', marginTop: '10px' }}>  
           총 {filteredCat2.length}개 분류2  
