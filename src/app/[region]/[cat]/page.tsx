@@ -147,25 +147,26 @@ export default function CatPage() {
   }, [selectedRegion2, computedData]);  
   
   // 경쟁사별 MS 요약  
-  const makerSummary = useMemo((): MakerSummary[] => {  
+   const makerSummary = useMemo((): MakerSummary[] => {  
     const totalPos = computedData.reduce((sum, s) => sum + (s.pos || 0), 0);  
     if (totalPos === 0) return [];  
   
-    const makerMap = new Map<string, { pos: number; mr: number }>();  
+    const makerMap = new Map<string, { pos: number; mr_sum: number }>();  
     computedData.forEach((sku) => {  
       const key = sku.mk;  
       if (!makerMap.has(key)) {  
-        makerMap.set(key, { pos: 0, mr: sku.mr || 0 });  
+        makerMap.set(key, { pos: 0, mr_sum: 0 });  
       }  
       const entry = makerMap.get(key)!;  
       entry.pos += sku.pos || 0;  
+      entry.mr_sum += sku.mr || 0;  
     });  
   
     return Array.from(makerMap.entries())  
       .map(([maker, val]) => ({  
         maker,  
         ms: val.pos / totalPos,  
-        ms_ref: val.mr,  
+        ms_ref: val.mr_sum,  
         pos: val.pos  
       }))  
       .sort((a, b) => b.pos - a.pos);  
