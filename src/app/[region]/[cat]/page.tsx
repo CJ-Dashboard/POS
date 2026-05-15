@@ -307,62 +307,52 @@ export default function CatPage() {
           </div>  
         </div>  
   
-        {/* 경쟁사별 MS 요약 */}  
-        {makerSummary.length > 0 && (  
-          <div style={{  
-            background: 'white', borderRadius: '12px', padding: '12px',  
-            marginBottom: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)'  
-          }}>  
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#444', marginBottom: '8px' }}>  
-              🏆 제조사별 MS 현황  
-            </div>  
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>  
-              {makerSummary.map((m, idx) => {  
-                const isCJ = m.maker === 'CJ';  
-                const diff = m.ms - m.ms_ref;  
-                const isPos = diff >= 0;  
-                const barWidth = Math.min(m.ms * 100 * 3, 100);  
-                return (  
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>  
-                    <div style={{ width: '60px', textAlign: 'right' }}>  
-                      <span style={{  
-                        fontSize: '11px', fontWeight: '800',  
-                        color: isCJ ? '#667eea' : '#1a1a2e'  
-                      }}>  
-                        {m.maker}  
-                      </span>  
-                    </div>  
-                    <div style={{ flex: 1, background: '#f0f0f0', borderRadius: '4px', height: '16px', overflow: 'hidden' }}>  
-                      <div style={{  
-                        width: `${barWidth}%`,  
-                        height: '100%',  
-                        background: isCJ  
-                          ? 'linear-gradient(90deg, #667eea, #764ba2)'  
-                          : 'linear-gradient(90deg, #e53e3e, #c53030)',  
-                        borderRadius: '4px',  
-                        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',  
-                        paddingRight: '4px'  
-                      }}>  
-                        <span style={{ fontSize: '9px', color: 'white', fontWeight: '700' }}>  
-                          {(m.ms * 100).toFixed(1)}%  
-                        </span>  
+                {/* 경쟁사별 MS 요약 */}  
+        {makerSummary.filter(m => m.maker !== 'CJ').length > 0 && (  
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>  
+            {makerSummary.filter(m => m.maker !== 'CJ').slice(0, 2).map((m, idx) => {  
+              const diff = m.ms - m.ms_ref;  
+              const isPos = diff >= 0;  
+              return (  
+                <div  
+                  key={idx}  
+                  style={{  
+                    background: 'white', borderRadius: '10px', padding: '10px 12px',  
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',  
+                    border: '1.5px solid #ffe0e0'  
+                  }}  
+                >  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>  
+                    <span style={{ fontSize: '9px', color: '#888', fontWeight: '600' }}>  
+                      제{idx + 1}경쟁사  
+                    </span>  
+                    <span style={{  
+                      fontSize: '10px', fontWeight: '800',  
+                      color: isPos ? '#3182ce' : '#e53e3e'  
+                    }}>  
+                      {isPos ? '▲' : '▼'}{Math.abs(diff * 100).toFixed(1)}%  
+                    </span>  
+                  </div>  
+                  <div style={{ fontWeight: '800', fontSize: '13px', color: '#e53e3e', marginBottom: '4px' }}>  
+                    {m.maker}  
+                  </div>  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>  
+                    <div>  
+                      <div style={{ fontSize: '9px', color: '#aaa' }}>지점 MS</div>  
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#1a1a2e' }}>  
+                        {(m.ms * 100).toFixed(1)}%  
                       </div>  
                     </div>  
-                    <div style={{ width: '64px', textAlign: 'right' }}>  
-                      <span style={{  
-                        fontSize: '10px', fontWeight: '700',  
-                        color: isPos ? '#3182ce' : '#e53e3e'  
-                      }}>  
-                        {isPos ? '▲' : '▼'}{Math.abs(diff * 100).toFixed(1)}%  
-                      </span>  
-                      <div style={{ fontSize: '9px', color: '#aaa' }}>  
-                        영본 {(m.ms_ref * 100).toFixed(1)}%  
+                    <div style={{ textAlign: 'right' }}>  
+                      <div style={{ fontSize: '9px', color: '#aaa' }}>영본 MS</div>  
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#888' }}>  
+                        {(m.ms_ref * 100).toFixed(1)}%  
                       </div>  
                     </div>  
                   </div>  
-                );  
-              })}  
-            </div>  
+                </div>  
+              );  
+            })}  
           </div>  
         )}  
   
