@@ -38,25 +38,37 @@ export default function CatPage() {
   useEffect(() => {  
     const loadData = async () => {  
       try {  
+        const safeCat = cat.replace(/\//g, '_').replace(/ /g, '_');  
+  
         const [skuRes, regionRes, hierarchyRes] = await Promise.all([  
-          fetch(`/data/skus_${region}.json`),  
+          fetch(`/data/skus/${region}/${safeCat}.json`),  
           fetch('/data/regions.json'),  
           fetch('/data/cat_hierarchy.json')  
         ]);  
-        const skuAll = await skuRes.json();  
+  
         const regionAll = await regionRes.json();  
         const hierarchy: Record<string, CatHierarchyItem> = await hierarchyRes.json();  
-  
         setCatHierarchy(hierarchy);  
   
-        let catData: SKU[] = (skuAll[cat] || []).filter((sku: SKU) => sku.r2 !== null);  
+        let catData: SKU[] = [];  
+  
+        if (skuRes.ok) {  
+          const skuArr = await skuRes.json();  
+          catData = skuArr.filter((sku: SKU) => sku.r2 !== null);  
+        }  
   
         if (catData.length === 0 && hierarchy[cat]?.children?.length) {  
           const children = hierarchy[cat].children || [];  
-          children.forEach((child) => {  
-            const childData: SKU[] = (skuAll[child] || []).filter((sku: SKU) => sku.r2 !== null);  
-            catData = catData.concat(childData);  
-          });  
+          await Promise.all(  
+            children.map(async (child) => {  
+              const safeChild = child.replace(/\//g, '_').replace(/ /g, '_');  
+              const res = await fetch(`/data/skus/${region}/${safeChild}.json`);  
+              if (res.ok) {  
+                const arr = await res.json();  
+                catData = catData.concat(arr.filter((sku: SKU) => sku.r2 !== null));  
+              }  
+            })  
+          );  
         }  
   
         setAllData(catData);  
@@ -200,7 +212,6 @@ export default function CatPage() {
           {selectedRegion2 ? selectedRegion2 : `${region} 전체 합산`} · {selectedSubCat ? selectedSubCat : '전체'}  
         </p>  
   
-        {/* 상단 요약 카드 */}  
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>  
           <div style={{  
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',  
@@ -240,7 +251,6 @@ export default function CatPage() {
           </div>  
         </div>  
   
-        {/* 필터 */}  
         <div style={{  
           background: 'white', borderRadius: '12px', padding: '12px',  
           marginBottom: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',  
@@ -285,7 +295,6 @@ export default function CatPage() {
           )}  
         </div>  
   
-        {/* 경쟁사 분석 */}  
         <div style={{  
           background: 'white', borderRadius: '12px', padding: '14px',  
           boxShadow: '0 2px 12px rgba(0,0,0,0.06)', marginBottom: '16px'  
@@ -341,10 +350,7 @@ export default function CatPage() {
                   </div>  
                   <div style={{ textAlign: 'center' }}>  
                     <div style={{ fontSize: '9px', color: '#aaa', marginBottom: '2px' }}>영본 比</div>  
-                    <div style={{  
-                      fontSize: '13px', fontWeight: '800',  
-                      color: isPos ? '#3182ce' : '#e53e3e'  
-                    }}>  
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: isPos ? '#3182ce' : '#e53e3e' }}>  
                       {isPos ? '▲' : '▼'}{Math.abs(diff * 100).toFixed(1)}%  
                     </div>  
                   </div>  
@@ -354,7 +360,6 @@ export default function CatPage() {
           </div>  
         </div>  
   
-        {/* SKU 분석 버튼 */}  
         <button  
           onClick={() => router.push(`/${encodeURIComponent(region)}/${encodeURIComponent(cat)}/sku`)}  
           style={{  

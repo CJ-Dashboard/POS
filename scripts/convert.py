@@ -151,15 +151,12 @@ for row in all_rows:
     for su, r2_set in su_region2_set.items():  
         if region2 not in r2_set:  
             continue  
-  
         su_cat_total[su][cat2] += pos_val  
         if cat3:  
             su_cat_total[su][cat3] += pos_val  
-  
         sku_key2 = (cat2, pc, product_name, maker)  
         su_sku_pos[su][sku_key2] += pos_val  
         su_sku_qty[su][sku_key2] += qty_val  
-  
         if cat3:  
             sku_key3 = (cat3, pc, product_name, maker)  
             su_sku_pos[su][sku_key3] += pos_val  
@@ -167,25 +164,29 @@ for row in all_rows:
   
 print("SU별 집계 완료!")  
   
-print("지역별 SKU JSON 생성 중...")  
-skus_by_sheet = {sheet: {} for sheet in REGION_SHEETS}  
+print("지역+카테고리별 JSON 생성 중...")  
   
-for row in all_rows:  
-    region2, product_code, product_name, pos, qty, maker, cat1, cat2, cat3 = row  
+for sheet_name, target_jijeoms in SHEET_TO_JIJEOM.items():  
+    cat_dir = f"{output_dir}/skus/{sheet_name}"  
+    os.makedirs(cat_dir, exist_ok=True)  
   
-    pos_val = pos or 0  
-    qty_val = qty or 0  
-    pc = str(product_code) if product_code else ''  
+    su = SHEET_TO_SU[sheet_name]  
+    jijeom_r2_set = set()  
+    for jijeom in target_jijeoms:  
+        if jijeom in region_map_list:  
+            jijeom_r2_set.update(region_map_list[jijeom])  
   
-    for sheet_name, target_jijeoms in SHEET_TO_JIJEOM.items():  
-        in_region = any(  
-            jijeom in region_map_list and region2 in region_map_list[jijeom]  
-            for jijeom in target_jijeoms  
-        )  
-        if not in_region:  
+    cat_data = defaultdict(list)  
+  
+    for row in all_rows:  
+        region2, product_code, product_name, pos, qty, maker, cat1, cat2, cat3 = row  
+  
+        if region2 not in jijeom_r2_set:  
             continue  
   
-        su = SHEET_TO_SU[sheet_name]  
+        pos_val = pos or 0  
+        qty_val = qty or 0  
+        pc = str(product_code) if product_code else ''  
   
         sku_key2 = (cat2, pc, product_name, maker)  
         su_total_cat2 = su_cat_total[su].get(cat2, 0)  
@@ -205,33 +206,22 @@ for row in all_rows:
             price_ref_cat3 = (su_pos3 / su_qty3) * 1000000 if su_qty3 > 0 else 0  
   
         sku_obj = {  
-            "r2": region2,  
-            "pc": pc,  
-            "pn": product_name,  
-            "pos": round(pos_val, 4),  
-            "qty": round(qty_val, 2),  
-            "mk": maker,  
-            "c2": cat2,  
-            "c3": cat3,  
-            "mr": round(ms_ref_cat2, 6),  
-            "mr3": round(ms_ref_cat3, 6),  
-            "pr": round(price_ref_cat2, 0),  
-            "pr3": round(price_ref_cat3, 0)  
+            "r2": region2, "pc": pc, "pn": product_name,  
+            "pos": round(pos_val, 4), "qty": round(qty_val, 2),  
+            "mk": maker, "c2": cat2, "c3": cat3,  
+            "mr": round(ms_ref_cat2, 6), "mr3": round(ms_ref_cat3, 6),  
+            "pr": round(price_ref_cat2, 0), "pr3": round(price_ref_cat3, 0)  
         }  
   
-        if cat2 not in skus_by_sheet[sheet_name]:  
-            skus_by_sheet[sheet_name][cat2] = []  
-        skus_by_sheet[sheet_name][cat2].append(sku_obj)  
-  
+        cat_data[cat2].append(sku_obj)  
         if cat3:  
-            if cat3 not in skus_by_sheet[sheet_name]:  
-                skus_by_sheet[sheet_name][cat3] = []  
-            skus_by_sheet[sheet_name][cat3].append(sku_obj)  
+            cat_data[cat3].append(sku_obj)  
   
-for sheet_name in REGION_SHEETS:  
-    cat_count = len(skus_by_sheet[sheet_name])  
-    with open(f"{output_dir}/skus_{sheet_name}.json", "w", encoding="utf-8") as f:  
-        json.dump(skus_by_sheet[sheet_name], f, ensure_ascii=False, separators=(',', ':'), default=str)  
-    print(f"  {sheet_name}: {cat_count}개 CAT 완료")  
+    for cat_name, skus in cat_data.items():  
+        safe_name = cat_name.replace('/', '_').replace(' ', '_')  
+        with open(f"{cat_dir}/{safe_name}.json", "w", encoding="utf-8") as f:  
+            json.dump(skus, f, ensure_ascii=False, separators=(',', ':'), default=str)  
+  
+    print(f"  {sheet_name}: {len(cat_data)}개 CAT 완료")  
   
 print("전체 변환 완료!")  

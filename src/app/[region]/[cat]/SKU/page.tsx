@@ -35,25 +35,37 @@ export default function SkuPage() {
   useEffect(() => {  
     const loadData = async () => {  
       try {  
-        const [skuRes, regionRes, hierarchyRes] = await Promise.all([  
-          fetch(`/data/skus_${region}.json`),  
+        const safeCat = cat.replace(/\//g, '_').replace(/ /g, '_');  
+  
+        const [regionRes, hierarchyRes] = await Promise.all([  
           fetch('/data/regions.json'),  
           fetch('/data/cat_hierarchy.json')  
         ]);  
-        const skuAll = await skuRes.json();  
+  
         const regionAll = await regionRes.json();  
         const hierarchy: Record<string, CatHierarchyItem> = await hierarchyRes.json();  
-  
         setCatHierarchy(hierarchy);  
   
-        let catData: SKU[] = (skuAll[cat] || []).filter((sku: SKU) => sku.r2 !== null);  
+        let catData: SKU[] = [];  
+  
+        const skuRes = await fetch(`/data/skus/${region}/${safeCat}.json`);  
+        if (skuRes.ok) {  
+          const skuArr = await skuRes.json();  
+          catData = skuArr.filter((sku: SKU) => sku.r2 !== null);  
+        }  
   
         if (catData.length === 0 && hierarchy[cat]?.children?.length) {  
           const children = hierarchy[cat].children || [];  
-          children.forEach((child) => {  
-            const childData: SKU[] = (skuAll[child] || []).filter((sku: SKU) => sku.r2 !== null);  
-            catData = catData.concat(childData);  
-          });  
+          await Promise.all(  
+            children.map(async (child) => {  
+              const safeChild = child.replace(/\//g, '_').replace(/ /g, '_');  
+              const res = await fetch(`/data/skus/${region}/${safeChild}.json`);  
+              if (res.ok) {  
+                const arr = await res.json();  
+                catData = catData.concat(arr.filter((sku: SKU) => sku.r2 !== null));  
+              }  
+            })  
+          );  
         }  
   
         setAllData(catData);  
@@ -201,15 +213,12 @@ export default function SkuPage() {
           {selectedRegion2 ? selectedRegion2 : `${region} 전체 합산`} · {selectedSubCat ? selectedSubCat : '전체'} · POS 내림차순  
         </p>  
   
-        {/* 상단 요약 카드 */}  
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>  
           <div style={{  
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',  
             borderRadius: '10px', padding: '10px 8px', textAlign: 'center'  
           }}>  
-            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>  
-              {region} MS  
-            </div>  
+            <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.8)', marginBottom: '3px' }}>{region} MS</div>  
             <div style={{ fontSize: '18px', fontWeight: '800', color: 'white' }}>{msLocal}</div>  
             <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>  
               CJ {catSummary?.cj?.toFixed(0)} / 경쟁 {catSummary?.competitor?.toFixed(0)}  
@@ -241,7 +250,6 @@ export default function SkuPage() {
           </div>  
         </div>  
   
-        {/* 필터 */}  
         <div style={{  
           background: 'white', borderRadius: '12px', padding: '12px',  
           marginBottom: '12px', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',  
@@ -391,7 +399,6 @@ export default function SkuPage() {
           </div>  
         </div>  
   
-        {/* SKU 테이블 */}  
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }} onClick={() => setShowProductSugg(false)}>  
           <table style={{  
             width: '100%', borderCollapse: 'collapse',  
