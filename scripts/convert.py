@@ -16,16 +16,17 @@ REGION_SHEETS = [
     "전남", "전북", "제주", "충남", "충북"  
 ]  
   
-SHEET_TO_JIJEOM = {  
-    "서울": ["서울"], "강원": ["강원"], "경기": ["경기"], "인천": ["인천"],  
-    "경남": ["경남"], "경북": ["경북1", "경북2"], "광주": ["호남"], "대구": ["경북2"],  
-    "대전": ["대전"], "부산": ["부산1", "부산2"], "세종": ["충북"], "울산": ["경북2"],  
-    "전남": ["호남"], "전북": ["전북"], "제주": ["제주"], "충남": ["충남"], "충북": ["충북"]  
+BLOCK_TO_SHEET = {  
+    0: "서울", 1: "강원", 2: "경기", 3: "경남", 4: "경북",  
+    5: "광주", 6: "대구", 7: "대전", 8: "부산", 9: "세종",  
+    10: "울산", 11: "인천", 12: "전남", 13: "전북", 14: "제주",  
+    15: "충남", 16: "충북"  
 }  
   
-SU_TO_JIJEOM = {  
-    "중부": ["강원", "경기", "서울", "인천"],  
-    "남부": ["경남", "경북1", "경북2", "대전", "부산1", "부산2", "전북", "제주", "충남", "충북", "호남"]  
+SU_TO_SHEET = {  
+    "중부": ["서울", "강원", "경기", "인천"],  
+    "남부": ["경남", "경북", "광주", "대구", "대전", "부산",  
+             "세종", "울산", "전남", "전북", "제주", "충남", "충북"]  
 }  
   
 SHEET_TO_SU = {  
@@ -70,25 +71,24 @@ with open(f"{output_dir}/region_map.json", "w", encoding="utf-8") as f:
     json.dump(region_map_list, f, ensure_ascii=False, separators=(',', ':'))  
 print("region_map.json 저장 완료!")  
   
-print("raw2 블록 구조 확인 중...")  
 ws_raw2 = wb["raw2"]  
-  
-header_row = []  
-for row in ws_raw2.iter_rows(min_row=3, max_row=3, values_only=True):  
-    header_row = list(row)  
-  
 region2_cols = []  
-for idx, val in enumerate(header_row):  
-    if val == '지역2':  
-        region2_cols.append(idx + 1)  
+for row in ws_raw2.iter_rows(min_row=3, max_row=3, values_only=True):  
+    for idx, val in enumerate(row):  
+        if val == '지역2':  
+            region2_cols.append(idx + 1)  
   
-print(f"  지역2 열 위치: {region2_cols}")  
+print(f"블록 수: {len(region2_cols)}개")  
   
+sheet_rows = defaultdict(list)  
 cat2_to_cat3 = {}  
-all_rows = []  
   
-for start_col in region2_cols:  
+for block_idx, start_col in enumerate(region2_cols):  
+    sheet_name = BLOCK_TO_SHEET.get(block_idx)  
+    if sheet_name is None:  
+        continue  
     end_col = start_col + 8  
+    row_count = 0  
     for row in ws_raw2.iter_rows(  
         min_row=4, max_row=ws_raw2.max_row,  
         min_col=start_col, max_col=end_col,  
@@ -112,9 +112,12 @@ for start_col in region2_cols:
         if cat3:  
             cat2_to_cat3[cat2].add(cat3)  
   
-        all_rows.append((region2, product_code, product_name, pos, qty, maker, cat1, cat2, cat3))  
+        sheet_rows[sheet_name].append(  
+            (region2, product_code, product_name, pos, qty, maker, cat1, cat2, cat3)  
+        )  
+        row_count += 1  
   
-print(f"  총 수집 행 수: {len(all_rows)}개")  
+    print(f"  블록 {block_idx+1} → {sheet_name}: {row_count}행")  
   
 cat_hierarchy = {}  
 for cat2, cat3s in cat2_to_cat3.items():  
@@ -128,61 +131,42 @@ with open(f"{output_dir}/cat_hierarchy.json", "w", encoding="utf-8") as f:
     json.dump(cat_hierarchy, f, ensure_ascii=False, separators=(',', ':'))  
 print("cat_hierarchy.json 저장 완료!")  
   
-su_region2_set = {}  
-for su, jijeoms in SU_TO_JIJEOM.items():  
-    r2_set = set()  
-    for jijeom in jijeoms:  
-        if jijeom in region_map_list:  
-            r2_set.update(region_map_list[jijeom])  
-    su_region2_set[su] = r2_set  
-    print(f"  {su} 영본 region2 수: {len(r2_set)}개")  
+su_cat_total = {su: defaultdict(float) for su in SU_TO_SHEET}  
+su_sku_pos = {su: defaultdict(float) for su in SU_TO_SHEET}  
+su_sku_qty = {su: defaultdict(float) for su in SU_TO_SHEET}  
   
-print("SU별 SKU pos/qty 합산 중...")  
-su_cat_total = {su: defaultdict(float) for su in SU_TO_JIJEOM}  
-su_sku_pos = {su: defaultdict(float) for su in SU_TO_JIJEOM}  
-su_sku_qty = {su: defaultdict(float) for su in SU_TO_JIJEOM}  
+for su, sheets in SU_TO_SHEET.items():  
+    for sheet_name in sheets:  
+        for row in sheet_rows[sheet_name]:  
+            region2, product_code, product_name, pos, qty, maker, cat1, cat2, cat3 = row  
+            pos_val = pos or 0  
+            qty_val = qty or 0  
+            pc = str(product_code) if product_code else ''  
   
-for row in all_rows:  
-    region2, product_code, product_name, pos, qty, maker, cat1, cat2, cat3 = row  
-    pos_val = pos or 0  
-    qty_val = qty or 0  
-    pc = str(product_code) if product_code else ''  
+            su_cat_total[su][cat2] += pos_val  
+            if cat3:  
+                su_cat_total[su][cat3] += pos_val  
   
-    for su, r2_set in su_region2_set.items():  
-        if region2 not in r2_set:  
-            continue  
-        su_cat_total[su][cat2] += pos_val  
-        if cat3:  
-            su_cat_total[su][cat3] += pos_val  
-        sku_key2 = (cat2, pc, product_name, maker)  
-        su_sku_pos[su][sku_key2] += pos_val  
-        su_sku_qty[su][sku_key2] += qty_val  
-        if cat3:  
-            sku_key3 = (cat3, pc, product_name, maker)  
-            su_sku_pos[su][sku_key3] += pos_val  
-            su_sku_qty[su][sku_key3] += qty_val  
+            sku_key2 = (cat2, pc, product_name, maker)  
+            su_sku_pos[su][sku_key2] += pos_val  
+            su_sku_qty[su][sku_key2] += qty_val  
+  
+            if cat3:  
+                sku_key3 = (cat3, pc, product_name, maker)  
+                su_sku_pos[su][sku_key3] += pos_val  
+                su_sku_qty[su][sku_key3] += qty_val  
   
 print("SU별 집계 완료!")  
   
-print("지역+카테고리별 JSON 생성 중...")  
-  
-for sheet_name, target_jijeoms in SHEET_TO_JIJEOM.items():  
+for sheet_name in REGION_SHEETS:  
     cat_dir = f"{output_dir}/skus/{sheet_name}"  
     os.makedirs(cat_dir, exist_ok=True)  
   
     su = SHEET_TO_SU[sheet_name]  
-    jijeom_r2_set = set()  
-    for jijeom in target_jijeoms:  
-        if jijeom in region_map_list:  
-            jijeom_r2_set.update(region_map_list[jijeom])  
-  
     cat_data = defaultdict(list)  
   
-    for row in all_rows:  
+    for row in sheet_rows[sheet_name]:  
         region2, product_code, product_name, pos, qty, maker, cat1, cat2, cat3 = row  
-  
-        if region2 not in jijeom_r2_set:  
-            continue  
   
         pos_val = pos or 0  
         qty_val = qty or 0  
