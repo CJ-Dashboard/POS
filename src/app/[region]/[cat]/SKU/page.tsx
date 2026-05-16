@@ -93,7 +93,7 @@ export default function SkuPage() {
     return [];  
   }, [cat, catHierarchy]);  
   
-    const computedData = useMemo((): ComputedSKU[] => {  
+      const computedData = useMemo((): ComputedSKU[] => {  
     let source = allData;  
   
     if (selectedRegion2) {  
@@ -120,12 +120,8 @@ export default function SkuPage() {
       source = source.filter((s) => s.c3 === selectedSubCat || s.c2 === selectedSubCat);  
     }  
   
-    // 공식 총 POS를 분모로 사용 (regions.json 기준)  
-    const officialTotal = catSummary  
-      ? (catSummary.cj || 0) + (catSummary.competitor || 0)  
-      : 0;  
-    const skuTotal = source.reduce((sum, s) => sum + (s.pos || 0), 0);  
-    const totalPos = officialTotal > 0 ? officialTotal : skuTotal;  
+    // SKU끼리 동일한 분모 사용 (raw2 전체 합산 기준)  
+    const totalPos = source.reduce((sum, s) => sum + (s.pos || 0), 0);  
   
     return source  
       .map((s) => ({  
@@ -134,7 +130,7 @@ export default function SkuPage() {
         price: s.qty && s.qty > 0 ? (s.pos / s.qty) * 1000000 : 0  
       }))  
       .sort((a, b) => b.pos - a.pos);  
-  }, [allData, selectedRegion2, selectedSubCat, catSummary]);  
+  }, [allData, selectedRegion2, selectedSubCat]);  
   
   const filtered = useMemo(() => {  
     let result = computedData;  
