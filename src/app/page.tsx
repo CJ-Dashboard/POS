@@ -50,7 +50,7 @@ export default function HomePage() {
               background: 'rgba(255,255,255,0.08)',  
               padding: '4px 12px', borderRadius: '20px'  
             }}>  
-              👤 이동현  
+              
             </span>  
             <span style={{  
               fontSize: '12px', color: 'rgba(255,255,255,0.4)',  
@@ -165,7 +165,7 @@ export default function HomePage() {
         )}  
   
         <p style={{ marginTop: '32px', fontSize: '11px', color: 'rgba(255,255,255,0.25)', textAlign: 'center' }}>  
-          CJ CheilJedang · 식품영업 기획팀  
+          CJ CheilJedang · 식품영업본부 👤 이동현
         </p>  
       </div>  
     </div>  
