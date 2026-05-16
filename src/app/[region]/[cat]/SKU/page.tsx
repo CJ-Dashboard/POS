@@ -93,7 +93,7 @@ export default function SkuPage() {
     return [];  
   }, [cat, catHierarchy]);  
   
-      const computedData = useMemo((): ComputedSKU[] => {  
+        const computedData = useMemo((): ComputedSKU[] => {  
     let source = allData;  
   
     if (selectedRegion2) {  
@@ -120,17 +120,35 @@ export default function SkuPage() {
       source = source.filter((s) => s.c3 === selectedSubCat || s.c2 === selectedSubCat);  
     }  
   
-    // SKU끼리 동일한 분모 사용 (raw2 전체 합산 기준)  
-    const totalPos = source.reduce((sum, s) => sum + (s.pos || 0), 0);  
+    // 공식 MS 기준으로 정규화  
+    // CJ SKU 합계 = 공식 CJ MS, 경쟁사 SKU 합계 = 공식 경쟁사 MS  
+    const officialCjMs = catSummary?.ms || 0;  
+    const officialCompMs = 1 - officialCjMs;  
+  
+    const cjTotalPos = source  
+      .filter((s) => s.mk === 'CJ')  
+      .reduce((sum, s) => sum + (s.pos || 0), 0);  
+    const compTotalPos = source  
+      .filter((s) => s.mk !== 'CJ')  
+      .reduce((sum, s) => sum + (s.pos || 0), 0);  
   
     return source  
-      .map((s) => ({  
-        ...s,  
-        ms: totalPos > 0 ? s.pos / totalPos : 0,  
-        price: s.qty && s.qty > 0 ? (s.pos / s.qty) * 1000000 : 0  
-      }))  
+      .map((s) => {  
+        const isCJ = s.mk === 'CJ';  
+        let ms = 0;  
+        if (isCJ && cjTotalPos > 0) {  
+          ms = (s.pos / cjTotalPos) * officialCjMs;  
+        } else if (!isCJ && compTotalPos > 0) {  
+          ms = (s.pos / compTotalPos) * officialCompMs;  
+        }  
+        return {  
+          ...s,  
+          ms,  
+          price: s.qty && s.qty > 0 ? (s.pos / s.qty) * 1000000 : 0  
+        };  
+      })  
       .sort((a, b) => b.pos - a.pos);  
-  }, [allData, selectedRegion2, selectedSubCat]);  
+  }, [allData, selectedRegion2, selectedSubCat, catSummary]);   
   
   const filtered = useMemo(() => {  
     let result = computedData;  
