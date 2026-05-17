@@ -156,7 +156,7 @@ export default function RegionPage() {
   
   const renderRow = (item: RegionCat, idx: number, clickable: boolean) => {  
     const msDiff = item.ms_diff ?? 0;  
-    const isNegative = msDiff < 0;  
+    const isPositive = msDiff >= 0;  
     const cat1 = CAT_MAP[item.cat];  
     const cat1Style = cat1 ? CAT1_COLOR[cat1] : null;  
   
@@ -202,10 +202,10 @@ export default function RegionPage() {
         </td>  
         <td style={{  
           padding: '7px 6px', textAlign: 'center',  
-          fontWeight: '700', fontSize: '12px',  
-          color: isNegative ? '#e53e3e' : '#3182ce'  
+          fontWeight: '800', fontSize: '12px',  
+          color: isPositive ? '#3182ce' : '#e53e3e'  
         }}>  
-          {msDiff != null ? (msDiff > 0 ? '▲' : '▼') + Math.abs(msDiff * 100).toFixed(1) + '%' : '-'}  
+          {isPositive ? '▲' : '▼'}{Math.abs(msDiff * 100).toFixed(1)}%  
         </td>  
       </tr>  
     );  
@@ -237,7 +237,6 @@ export default function RegionPage() {
           분류2를 클릭하면 SKU 상세를 볼 수 있어요  
         </p>  
   
-        {/* 검색창 */}  
         <div style={{ position: 'relative', marginBottom: '10px' }}>  
           <div style={{  
             background: 'white', borderRadius: '12px', padding: '10px 14px',  
@@ -300,7 +299,6 @@ export default function RegionPage() {
           )}  
         </div>  
   
-        {/* 식품/신선/FI 필터 버튼 */}  
         <div style={{ display: 'flex', gap: '6px', marginBottom: '14px', flexWrap: 'wrap' }}>  
           {['전체', '식품', '신선', 'FI'].map((cat1) => {  
             const style = cat1 !== '전체' ? CAT1_COLOR[cat1] : null;  
@@ -330,7 +328,6 @@ export default function RegionPage() {
           })}  
         </div>  
   
-        {/* 테이블 */}  
         <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }} onClick={() => setShowSuggestions(false)}>  
           <table style={{  
             width: '100%', borderCollapse: 'collapse',  

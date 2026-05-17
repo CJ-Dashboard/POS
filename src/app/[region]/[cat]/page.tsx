@@ -39,7 +39,6 @@ export default function CatPage() {
     const loadData = async () => {  
       try {  
         const safeCat = cat.replace(/\//g, '_').replace(/ /g, '_');  
-  
         const [skuRes, regionRes, hierarchyRes] = await Promise.all([  
           fetch(`/data/skus/${region}/${safeCat}.json`),  
           fetch('/data/regions.json'),  
@@ -51,7 +50,6 @@ export default function CatPage() {
         setCatHierarchy(hierarchy);  
   
         let catData: SKU[] = [];  
-  
         if (skuRes.ok) {  
           const skuArr = await skuRes.json();  
           catData = skuArr.filter((sku: SKU) => sku.r2 !== null);  
@@ -72,7 +70,6 @@ export default function CatPage() {
         }  
   
         setAllData(catData);  
-  
         const regionCats: RegionCat[] = regionAll[region] || [];  
         const found = regionCats.find((item) => item.cat === cat) || null;  
         setCatSummary(found);  
@@ -143,6 +140,8 @@ export default function CatPage() {
   }, [selectedRegion2, computedData]);  
   
   const makerSummary = useMemo((): MakerSummary[] => {  
+    if (!catSummary) return [];  
+  
     const totalPos = computedData.reduce((sum, s) => sum + (s.pos || 0), 0);  
     if (totalPos === 0) return [];  
   
@@ -157,14 +156,15 @@ export default function CatPage() {
     });  
   
     return Array.from(makerMap.entries())  
-      .map(([maker, val]) => ({  
-        maker,  
-        ms: val.pos / totalPos,  
-        ms_ref: val.mr_sum,  
-        pos: val.pos  
-      }))  
-      .sort((a, b) => b.pos - a.pos);  
-  }, [computedData]);  
+      .map(([maker, val]) => {  
+        const ms = val.pos / totalPos;  
+        const ms_ref = maker === 'CJ'  
+          ? (catSummary.ms_ref || 0)  
+          : val.mr_sum;  
+        return { maker, ms, ms_ref, pos: val.pos };  
+      })  
+      .sort((a, b) => b.ms - a.ms);  
+  }, [computedData, catSummary]);  
   
   if (loading) {  
     return (  
@@ -178,9 +178,9 @@ export default function CatPage() {
     );  
   }  
   
-  const displayMs = dynamicSummary ? dynamicSummary.ms : catSummary?.ms;  
-  const displayCj = dynamicSummary ? dynamicSummary.cj : catSummary?.cj;  
-  const displayComp = dynamicSummary ? dynamicSummary.competitor : catSummary?.competitor;  
+  const displayMs = selectedRegion2 && dynamicSummary ? dynamicSummary.ms : catSummary?.ms;  
+  const displayCj = selectedRegion2 && dynamicSummary ? dynamicSummary.cj : catSummary?.cj;  
+  const displayComp = selectedRegion2 && dynamicSummary ? dynamicSummary.competitor : catSummary?.competitor;  
   const msLocal = displayMs != null ? (displayMs * 100).toFixed(1) + '%' : '-';  
   const msRef = catSummary?.ms_ref != null ? (catSummary.ms_ref * 100).toFixed(1) + '%' : '-';  
   const msDiffVal = displayMs != null && catSummary?.ms_ref != null ? displayMs - catSummary.ms_ref : catSummary?.ms_diff ?? 0;  
