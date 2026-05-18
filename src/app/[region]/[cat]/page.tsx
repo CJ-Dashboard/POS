@@ -139,7 +139,7 @@ export default function CatPage() {
     return { cj: cjPos, competitor: compPos, ms: totalPos > 0 ? cjPos / totalPos : 0 };  
   }, [selectedRegion2, computedData]);  
   
-      const makerSummary = useMemo((): MakerSummary[] => {  
+        const makerSummary = useMemo((): MakerSummary[] => {  
     if (!catSummary) return [];  
   
     const totalPos = computedData.reduce((sum, s) => sum + (s.pos || 0), 0);  
