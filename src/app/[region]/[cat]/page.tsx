@@ -139,7 +139,7 @@ export default function CatPage() {
     return { cj: cjPos, competitor: compPos, ms: totalPos > 0 ? cjPos / totalPos : 0 };  
   }, [selectedRegion2, computedData]);  
   
-  const makerSummary = useMemo((): MakerSummary[] => {  
+    const makerSummary = useMemo((): MakerSummary[] => {  
     if (!catSummary) return [];  
   
     const totalPos = computedData.reduce((sum, s) => sum + (s.pos || 0), 0);  
@@ -156,13 +156,12 @@ export default function CatPage() {
     });  
   
     return Array.from(makerMap.entries())  
-      .map(([maker, val]) => {  
-        const ms = val.pos / totalPos;  
-        const ms_ref = maker === 'CJ'  
-          ? (catSummary.ms_ref || 0)  
-          : val.mr_sum;  
-        return { maker, ms, ms_ref, pos: val.pos };  
-      })  
+      .map(([maker, val]) => ({  
+        maker,  
+        ms: val.pos / totalPos,  
+        ms_ref: val.mr_sum,  
+        pos: val.pos  
+      }))  
       .sort((a, b) => b.ms - a.ms);  
   }, [computedData, catSummary]);  
   
