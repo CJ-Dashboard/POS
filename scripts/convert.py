@@ -71,14 +71,16 @@ with open(f"{output_dir}/region_map.json", "w", encoding="utf-8") as f:
     json.dump(region_map_list, f, ensure_ascii=False, separators=(',', ':'))  
 print("region_map.json 저장 완료!")  
   
+print("raw2 블록 구조 확인 중...")  
 ws_raw2 = wb["raw2"]  
+  
 region2_cols = []  
 for row in ws_raw2.iter_rows(min_row=3, max_row=3, values_only=True):  
     for idx, val in enumerate(row):  
         if val == '지역2':  
             region2_cols.append(idx + 1)  
   
-print(f"블록 수: {len(region2_cols)}개")  
+print(f"  블록 수: {len(region2_cols)}개")  
   
 sheet_rows = defaultdict(list)  
 cat2_to_cat3 = {}  
@@ -131,6 +133,7 @@ with open(f"{output_dir}/cat_hierarchy.json", "w", encoding="utf-8") as f:
     json.dump(cat_hierarchy, f, ensure_ascii=False, separators=(',', ':'))  
 print("cat_hierarchy.json 저장 완료!")  
   
+print("SU별 SKU pos/qty 합산 중...")  
 su_cat_total = {su: defaultdict(float) for su in SU_TO_SHEET}  
 su_sku_pos = {su: defaultdict(float) for su in SU_TO_SHEET}  
 su_sku_qty = {su: defaultdict(float) for su in SU_TO_SHEET}  
@@ -157,6 +160,8 @@ for su, sheets in SU_TO_SHEET.items():
                 su_sku_qty[su][sku_key3] += qty_val  
   
 print("SU별 집계 완료!")  
+  
+print("지역+카테고리별 JSON 생성 중...")  
   
 for sheet_name in REGION_SHEETS:  
     cat_dir = f"{output_dir}/skus/{sheet_name}"  
