@@ -3,8 +3,8 @@ import json
 import os  
 from collections import defaultdict  
   
-file_path = r"raw/POS RAW.xlsx"  
-output_dir = "public/data"  
+file_path = r"../raw/POS RAW.xlsx"  
+output_dir = "../public/data"  
 os.makedirs(output_dir, exist_ok=True)  
   
 print("파일 로딩 중...")  
@@ -183,14 +183,21 @@ for sheet_name in REGION_SHEETS:
             continue  
   
         result = {}  
-        for maker, pos in maker_map.items():  
-            if maker == 'CJ':  
-                official_cj_msref = cj_msref_by_region_cat.get(sheet_name, {}).get(cat_name)  
-                if official_cj_msref is not None:  
-                    result[maker] = round(float(official_cj_msref), 6)  
-                else:  
-                    result[maker] = round(pos / cat_total, 6)  
-            else:  
+        official_cj_msref = cj_msref_by_region_cat.get(sheet_name, {}).get(cat_name)  
+  
+        if official_cj_msref is not None:  
+            cj_official = float(official_cj_msref)  
+            result['CJ'] = round(cj_official, 6)  
+            remaining = 1.0 - cj_official  
+            non_cj_total = sum(p for mk, p in maker_map.items() if mk != 'CJ')  
+            for maker, pos in maker_map.items():  
+                if maker != 'CJ':  
+                    if non_cj_total > 0:  
+                        result[maker] = round((pos / non_cj_total) * remaining, 6)  
+                    else:  
+                        result[maker] = 0  
+        else:  
+            for maker, pos in maker_map.items():  
                 result[maker] = round(pos / cat_total, 6)  
   
         safe_name = cat_name.replace('/', '_').replace(' ', '_')  
