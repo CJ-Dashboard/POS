@@ -30,6 +30,7 @@ export default function CatPage() {
   
   const [allData, setAllData] = useState<SKU[]>([]);  
   const [catSummary, setCatSummary] = useState<RegionCat | null>(null);  
+  const [makerMsRefData, setMakerMsRefData] = useState<Record<string, number>>({});  
   const [selectedRegion2, setSelectedRegion2] = useState('');  
   const [selectedSubCat, setSelectedSubCat] = useState('');  
   const [catHierarchy, setCatHierarchy] = useState<Record<string, CatHierarchyItem>>({});  
@@ -39,15 +40,20 @@ export default function CatPage() {
     const loadData = async () => {  
       try {  
         const safeCat = cat.replace(/\//g, '_').replace(/ /g, '_');  
-        const [skuRes, regionRes, hierarchyRes] = await Promise.all([  
+  
+        const [skuRes, regionRes, hierarchyRes, makerMsRefRes] = await Promise.all([  
           fetch(`/data/skus/${region}/${safeCat}.json`),  
           fetch('/data/regions.json'),  
-          fetch('/data/cat_hierarchy.json')  
+          fetch('/data/cat_hierarchy.json'),  
+          fetch(`/data/maker_msref/${region}/${safeCat}.json`)  
         ]);  
   
         const regionAll = await regionRes.json();  
         const hierarchy: Record<string, CatHierarchyItem> = await hierarchyRes.json();  
+        const makerMsRef: Record<string, number> = makerMsRefRes.ok ? await makerMsRefRes.json() : {};  
+  
         setCatHierarchy(hierarchy);  
+        setMakerMsRefData(makerMsRef);  
   
         let catData: SKU[] = [];  
         if (skuRes.ok) {  
@@ -139,31 +145,29 @@ export default function CatPage() {
     return { cj: cjPos, competitor: compPos, ms: totalPos > 0 ? cjPos / totalPos : 0 };  
   }, [selectedRegion2, computedData]);  
   
-        const makerSummary = useMemo((): MakerSummary[] => {  
+  const makerSummary = useMemo((): MakerSummary[] => {  
     if (!catSummary) return [];  
   
     const totalPos = computedData.reduce((sum, s) => sum + (s.pos || 0), 0);  
     if (totalPos === 0) return [];  
   
-    const makerMap = new Map<string, { pos: number; mr_sum: number }>();  
+    const makerMap = new Map<string, { pos: number }>();  
     computedData.forEach((sku) => {  
       if (!makerMap.has(sku.mk)) {  
-        makerMap.set(sku.mk, { pos: 0, mr_sum: 0 });  
+        makerMap.set(sku.mk, { pos: 0 });  
       }  
-      const entry = makerMap.get(sku.mk)!;  
-      entry.pos += sku.pos || 0;  
-      entry.mr_sum += sku.mr || 0;  
+      makerMap.get(sku.mk)!.pos += sku.pos || 0;  
     });  
   
     return Array.from(makerMap.entries())  
       .map(([maker, val]) => ({  
         maker,  
         ms: val.pos / totalPos,  
-        ms_ref: val.mr_sum,  
+        ms_ref: makerMsRefData[maker] ?? 0,  
         pos: val.pos  
       }))  
       .sort((a, b) => b.ms - a.ms);  
-  }, [computedData, catSummary]);  
+  }, [computedData, catSummary, makerMsRefData]);  
   
   if (loading) {  
     return (  

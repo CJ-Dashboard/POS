@@ -37,9 +37,12 @@ SHEET_TO_SU = {
 }  
   
 regions_data = {}  
+cj_msref_by_region_cat = {}  
+  
 for region in REGION_SHEETS:  
     ws = wb[region]  
     region_cats = []  
+    cj_msref_by_region_cat[region] = {}  
     for row in ws.iter_rows(min_row=7, max_row=ws.max_row, min_col=12, max_col=19, values_only=True):  
         cat = row[0]  
         if cat is None:  
@@ -48,6 +51,8 @@ for region in REGION_SHEETS:
             "cat": cat, "cj": row[1], "competitor": row[2], "ms": row[3],  
             "cj_ref": row[4], "competitor_ref": row[5], "ms_ref": row[6], "ms_diff": row[7]  
         })  
+        if row[6] is not None:  
+            cj_msref_by_region_cat[region][cat] = row[6]  
     regions_data[region] = region_cats  
     print(f"  {region} 완료: {len(region_cats)}개 CAT")  
   
@@ -137,6 +142,7 @@ print("SU별 SKU pos/qty 합산 중...")
 su_cat_total = {su: defaultdict(float) for su in SU_TO_SHEET}  
 su_sku_pos = {su: defaultdict(float) for su in SU_TO_SHEET}  
 su_sku_qty = {su: defaultdict(float) for su in SU_TO_SHEET}  
+su_maker_pos = {su: defaultdict(lambda: defaultdict(float)) for su in SU_TO_SHEET}  
   
 for su, sheets in SU_TO_SHEET.items():  
     for sheet_name in sheets:  
@@ -153,13 +159,47 @@ for su, sheets in SU_TO_SHEET.items():
             sku_key2 = (cat2, pc, product_name, maker)  
             su_sku_pos[su][sku_key2] += pos_val  
             su_sku_qty[su][sku_key2] += qty_val  
+            su_maker_pos[su][cat2][maker] += pos_val  
   
             if cat3:  
                 sku_key3 = (cat3, pc, product_name, maker)  
                 su_sku_pos[su][sku_key3] += pos_val  
                 su_sku_qty[su][sku_key3] += qty_val  
+                su_maker_pos[su][cat3][maker] += pos_val  
   
 print("SU별 집계 완료!")  
+  
+print("제조사별 영본MS JSON 생성 중...")  
+  
+for sheet_name in REGION_SHEETS:  
+    maker_dir = f"{output_dir}/maker_msref/{sheet_name}"  
+    os.makedirs(maker_dir, exist_ok=True)  
+  
+    su = SHEET_TO_SU[sheet_name]  
+  
+    for cat_name, maker_map in su_maker_pos[su].items():  
+        cat_total = su_cat_total[su].get(cat_name, 0)  
+        if cat_total == 0:  
+            continue  
+  
+        result = {}  
+        for maker, pos in maker_map.items():  
+            if maker == 'CJ':  
+                official_cj_msref = cj_msref_by_region_cat.get(sheet_name, {}).get(cat_name)  
+                if official_cj_msref is not None:  
+                    result[maker] = round(float(official_cj_msref), 6)  
+                else:  
+                    result[maker] = round(pos / cat_total, 6)  
+            else:  
+                result[maker] = round(pos / cat_total, 6)  
+  
+        safe_name = cat_name.replace('/', '_').replace(' ', '_')  
+        with open(f"{maker_dir}/{safe_name}.json", "w", encoding="utf-8") as f:  
+            json.dump(result, f, ensure_ascii=False, separators=(',', ':'))  
+  
+    print(f"  {sheet_name}: 제조사 영본MS 완료")  
+  
+print("제조사별 영본MS JSON 생성 완료!")  
   
 print("지역+카테고리별 JSON 생성 중...")  
   
