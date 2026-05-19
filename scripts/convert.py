@@ -124,7 +124,7 @@ for block_idx, start_col in enumerate(region2_cols):
         )  
         row_count += 1  
   
-    print(f"  블록 {block_idx+1} → {sheet_name}: {row_count}행")  
+    print(f"  블록 {block_idx+1} -> {sheet_name}: {row_count}행")  
   
 cat_hierarchy = {}  
 for cat2, cat3s in cat2_to_cat3.items():  
@@ -156,7 +156,7 @@ for su, sheets in SU_TO_SHEET.items():
             if cat3:  
                 su_cat_total[su][cat3] += pos_val  
   
-            sku_key2 = (cat2, pc, product_name, maker)  
+            sku_key2 = (cat2, cat3 or '', pc, product_name, maker)  
             su_sku_pos[su][sku_key2] += pos_val  
             su_sku_qty[su][sku_key2] += qty_val  
             su_maker_pos[su][cat2][maker] += pos_val  
@@ -217,7 +217,7 @@ for sheet_name in REGION_SHEETS:
         qty_val = qty or 0  
         pc = str(product_code) if product_code else ''  
   
-        sku_key2 = (cat2, pc, product_name, maker)  
+        sku_key2 = (cat2, cat3 or '', pc, product_name, maker)  
         su_total_cat2 = su_cat_total[su].get(cat2, 0)  
         ms_ref_cat2 = su_sku_pos[su].get(sku_key2, 0) / su_total_cat2 if su_total_cat2 > 0 else 0  
         su_qty2 = su_sku_qty[su].get(sku_key2, 0)  
