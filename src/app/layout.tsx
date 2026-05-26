@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'  
+import { Analytics } from '@vercel/analytics/next'
   
 export const metadata: Metadata = {  
   title: 'POS MS 대시보드',  
@@ -16,7 +17,8 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />  
       </head>  
       <body style={{ margin: 0, padding: 0, overflowX: 'hidden' }}>  
-        {children}  
+        {children}
+        <Analytics />
       </body>  
     </html>  
   )  
